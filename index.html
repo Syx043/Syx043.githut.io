@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>珍珠蛇：音乐终极修复</title>
+    <style>
+        :root { --blue: #007aff; --red: #ff3b30; --bg: #ffffff; }
+        body {
+            margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #1d1d1f; 
+            font-family: -apple-system, sans-serif; overflow-y: auto; min-height: 100vh;
+            justify-content: center;
+        }
+        
+        /* 游戏机主体 */
+        #gameboy-body {
+            width: 95vw; max-width: 450px; height: auto; min-height: 750px; 
+            margin: 20px auto; position: relative; display: flex; flex-direction: column;
+            background: linear-gradient(135deg, #2c2c2e 0%, #1d1d1f 100%); 
+            border-radius: 28px; box-shadow: 
+                0 25px 60px rgba(0,0,0,0.5),
+                0 10px 30px rgba(0,0,0,0.3),
+                inset 0 1px 0 rgba(255,255,255,0.1),
+                inset 0 -1px 0 rgba(0,0,0,0.5);
+            border: 15px solid #1d1d1f; overflow: hidden;
+        }
+        
+        /* 游戏机顶部装饰 */
+        .console-top {
+            padding: 12px 25px 8px; display: flex; justify-content: space-between;
+            align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);
+            height: 40px; box-sizing: border-box;
+        }
+        .console-logo {
+            font-size: 16px; font-weight: 900; color: #ff3b30; letter-spacing: 1.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.7);
+        }
+        .power-light {
+            width: 12px; height: 12px; border-radius: 50%; background: #30d158;
+            box-shadow: 0 0 12px #30d158, inset 0 0 6px rgba(255,255,255,0.7);
+            animation: powerPulse 2s infinite alternate;
+        }
+        @keyframes powerPulse {
+            0% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+        
+        /* 屏幕区域 - 占据2/3高度 */
+        #screen-section {
+            flex: 2; /* 2/3部分 */
+            padding: 15px 20px 20px; display: flex; flex-direction: column;
+            align-items: center; justify-content: flex-start;
+            box-sizing: border-box;
+        }
+        
+        /* 状态显示区域 */
+        #top-ui {
+            width: 100%; display: flex; flex-direction: column; align-items: center;
+            margin-bottom: 10px; z-index: 10; pointer-events: none;
+        }
+        .timer-row { 
+            display: flex; gap: 12px; margin-bottom: 6px; 
+            justify-content: center; width: 100%;
+        }
+        .timer-box {
+            background: linear-gradient(135deg, rgba(0,0,0,0.8) 0%, rgba(30,30,30,0.9) 100%); 
+            padding: 8px 14px; border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08); font-size: 11px; font-weight: 700;
+            color: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            min-width: 110px; text-align: center;
+            backdrop-filter: blur(5px);
+        }
+        .timer-box span {
+            color: var(--blue); font-weight: 900; font-size: 13px;
+        }
+        #status-overlay { display: flex; gap: 8px; margin-top: 5px; }
+        .status-tag {
+            padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 900;
+            color: white; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+            display: flex; align-items: center; gap: 4px;
+        }
+        
+        /* 分数显示 */
+        #score-board {
+            font-size: 60px; font-weight: 900; margin: 5px 0 15px; 
+            color: #fff; letter-spacing: -2px; text-shadow: 0 4px 8px rgba(0,0,0,0.7);
+            background: linear-gradient(135deg, rgba(0,0,0,0.4) 0%, rgba(40,40,40,0.5) 100%); 
+            padding: 10px 25px; border-radius: 18px;
+            border: 2px solid rgba(255,255,255,0.12);
+            min-width: 180px; text-align: center;
+        }
+        
+        /* 游戏画布容器 */
+        #game-container {
+            position: relative; border-radius: 12px; 
+            background: #000; overflow: hidden; border: 6px solid #000;
+            box-shadow: 
+                0 15px 40px rgba(0,0,0,0.7),
+                inset 0 0 25px rgba(255,255,255,0.05);
+            width: 100%; max-width: 380px; height: 0; padding-bottom: 100%; /* 保持正方形 */
+            margin: 0 auto;
+        }
+        canvas { 
+            position: absolute; top: 0; left: 0; 
+            width: 100%; height: 100%; display: block; 
+        }
+        
+        /* 扬声器装饰 */
+        .speaker-grill {
+            width: 70%; height: 6px; margin: 5px auto;
+            background: repeating-linear-gradient(
+                90deg, rgba(0,0,0,0.7), rgba(0,0,0,0.7) 3px, 
+                rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 6px
+            ); border-radius: 3px;
+            box-shadow: inset 0 1px 1px rgba(0,0,0,0.5);
+        }
+        
+        /* 控制区域 - 占据1/3高度 */
+        #control-section {
+            flex: 1; /* 1/3部分 */
+            padding: 15px 25px 25px; background: rgba(0,0,0,0.25); 
+            border-top: 1px solid rgba(255,255,255,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+            box-sizing: border-box; min-height: 220px;
+        }
+        
+        /* 十字键容器 */
+        .d-pad-container {
+            position: relative; width: 160px; height: 160px;
+            display: flex; justify-content: center; align-items: center;
+        }
+        
+        /* 十字键底座 */
+        .d-pad {
+            position: relative; width: 120px; height: 120px;
+            background: linear-gradient(135deg, #252527 0%, #1a1a1c 100%);
+            border-radius: 50%; border: 8px solid #000;
+            box-shadow: 
+                inset 0 -6px 12px rgba(0,0,0,0.8),
+                inset 0 4px 8px rgba(255,255,255,0.05),
+                0 8px 20px rgba(0,0,0,0.6);
+        }
+        
+        /* 十字键中心 */
+        .d-pad::before {
+            content: ''; position: absolute; top: 50%; left: 50%;
+            width: 32px; height: 32px; background: #2c2c2e;
+            border-radius: 50%; transform: translate(-50%, -50%);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.7), 0 1px 1px rgba(255,255,255,0.05);
+            z-index: 1;
+        }
+        
+        /* 十字键按钮 */
+        .d-btn {
+            position: absolute; width: 48px; height: 48px; border-radius: 14px;
+            background: linear-gradient(135deg, #3a3a3c 0%, #2c2c2e 100%);
+            border: 4px solid #000; display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: rgba(255,255,255,0.9); cursor: pointer;
+            user-select: none; -webkit-tap-highlight-color: transparent;
+            box-shadow: 
+                0 6px 12px rgba(0,0,0,0.5),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            transition: all 0.08s ease; z-index: 2;
+        }
+        .d-btn:active { 
+            transform: translateY(3px) scale(0.95); 
+            box-shadow: 
+                0 2px 4px rgba(0,0,0,0.4),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            background: linear-gradient(135deg, #2c2c2e 0%, #1d1d1f 100%);
+        }
+        #btn-up { top: 5px; left: 50%; transform: translateX(-50%); }
+        #btn-down { bottom: 5px; left: 50%; transform: translateX(-50%); }
+        #btn-left { left: 5px; top: 50%; transform: translateY(-50%); }
+        #btn-right { right: 5px; top: 50%; transform: translateY(-50%); }
+        
+        /* 加速按钮容器 */
+        .action-btn-container {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; height: 100%;
+        }
+        
+        /* 加速按钮 */
+        #boost-btn {
+            width: 100px; height: 100px; border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #ff3b30 0%, #a00000 100%);
+            border: 8px solid #1d1d1f; color: white; font-weight: bold; font-size: 16px;
+            cursor: pointer; box-shadow: 
+                0 10px 25px rgba(255,59,48,0.4),
+                inset 0 4px 12px rgba(255,255,255,0.3),
+                inset 0 -6px 12px rgba(0,0,0,0.6);
+            display: flex; align-items: center; justify-content: center;
+            user-select: none; -webkit-tap-highlight-color: transparent;
+            transition: all 0.1s ease; position: relative;
+        }
+        #boost-btn:active {
+            transform: translateY(4px) scale(0.94);
+            box-shadow: 
+                0 5px 15px rgba(255,59,48,0.3),
+                inset 0 4px 12px rgba(255,255,255,0.2),
+                inset 0 -4px 8px rgba(0,0,0,0.5);
+        }
+        #boost-btn::after {
+            content: ''; position: absolute; top: -12px; left: -12px;
+            right: -12px; bottom: -12px; border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.1); pointer-events: none;
+        }
+        
+        /* 按钮标签 */
+        .btn-label {
+            color: rgba(255,255,255,0.6); font-size: 12px; font-weight: 700;
+            margin-top: 8px; text-transform: uppercase; letter-spacing: 1px;
+        }
+        
+        /* 叠加层（开始/死亡屏幕） */
+        .overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 30px; text-align: center;
+        }
+        .guide-box {
+            background: rgba(255,255,255,0.1); padding: 18px; border-radius: 15px; 
+            max-width: 320px; margin: 15px 0; font-size: 13px; line-height: 1.6; 
+            color: rgba(255,255,255,0.9); text-align: left; border: 1px solid rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .action-btn { 
+            background: linear-gradient(135deg, #ff3b30 0%, #c00000 100%); 
+            color: white; border: none; padding: 16px 45px; border-radius: 35px; 
+            font-size: 18px; font-weight: bold; cursor: pointer; margin-top: 10px;
+            box-shadow: 0 8px 20px rgba(255,59,48,0.3);
+            transition: transform 0.2s ease;
+        }
+        .action-btn:active { transform: translateY(3px); }
+        
+        /* 动画 */
+        @keyframes pulse { 
+            0% { transform: scale(1); } 
+            50% { transform: scale(1.05); } 
+            100% { transform: scale(1); } 
+        }
+        @keyframes glow { 
+            0% { box-shadow: 0 0 10px var(--blue); } 
+            50% { box-shadow: 0 0 20px var(--blue); } 
+            100% { box-shadow: 0 0 10px var(--blue); } 
+        }
+        .warning-text { color: var(--red) !important; animation: pulse 0.5s infinite; }
+        
+        /* 响应式调整 */
+        @media (max-width: 480px) {
+            #gameboy-body { 
+                max-width: 400px; min-height: 700px; 
+                border-width: 12px;
+            }
+            #screen-section { padding: 12px 15px 15px; }
+            #control-section { 
+                padding: 12px 20px 20px; 
+                min-height: 200px;
+            }
+            .d-pad-container { width: 150px; height: 150px; }
+            .d-pad { width: 110px; height: 110px; }
+            .d-btn { width: 44px; height: 44px; font-size: 18px; }
+            #boost-btn { width: 90px; height: 90px; font-size: 15px; }
+            #score-board { font-size: 54px; min-width: 160px; padding: 8px 20px; }
+            .timer-box { min-width: 100px; font-size: 10px; padding: 7px 12px; }
+        }
+        
+        @media (max-height: 700px) {
+            #gameboy-body { 
+                min-height: 680px; 
+                margin: 10px auto;
+            }
+            #control-section { 
+                min-height: 180px;
+            }
+            .d-pad-container { width: 140px; height: 140px; }
+            .d-pad { width: 100px; height: 100px; }
+            .d-btn { width: 40px; height: 40px; font-size: 16px; }
+            #boost-btn { width: 85px; height: 85px; }
+            #score-board { font-size: 50px; margin: 3px 0 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen" class="overlay">
+        <h1 style="font-size: 32px; margin:0; color:#fff;">珍珠蛇</h1>
+        <p style="color: var(--red); font-weight: 900; margin-top:5px;">STRANGER SYSTEMS</p>
+        <div class="guide-box">
+            <div style="margin-bottom:8px;">🟡 <b>食物 (x4)</b> | ⚪ <b>正面球 (x4)</b></div>
+            <div style="margin-bottom:8px;">🔴 <b>负面球 (x3)</b> | 🔵 <b>传送门 (即时)</b></div>
+        </div>
+        <button id="start-btn" class="action-btn">启动系统</button>
+    </div>
+
+    <div id="death-screen" class="overlay" style="display: none;">
+        <h2 style="font-size: 40px; margin:0; color:#fff;">同步丢失</h2>
+        <p id="death-quote" style="margin:20px 0; color:var(--red);">数据重连中...</p>
+        <button id="restart-btn" class="action-btn">重新同步</button>
+    </div>
+
+    <!-- 游戏机主体 -->
+    <div id="gameboy-body">
+        <!-- 顶部装饰 -->
+        <div class="console-top">
+            <div class="console-logo">PEARL SNAKE</div>
+            <div class="power-light"></div>
+        </div>
+        
+        <!-- 屏幕区域 (2/3) -->
+        <div id="screen-section">
+            <!-- 状态UI -->
+            <div id="top-ui">
+                <div class="timer-row">
+                    <div id="box-obs" class="timer-box">地形重组: <span id="t-obs">10.0</span>s</div>
+                    <div id="box-portal" class="timer-box">传送变相: <span id="t-portal">20.0</span>s</div>
+                </div>
+                <div id="status-overlay" style="display: flex; gap:5px;">
+                    <div id="tag-shield" class="status-tag" style="background: var(--blue); display:none;">🛡️ 护盾</div>
+                    <div id="tag-confused" class="status-tag" style="background: var(--red); display:none;">⚠️ 逆转</div>
+                </div>
+            </div>
+            
+            <!-- 分数显示 -->
+            <div id="score-board">0</div>
+            
+            <!-- 游戏画布 -->
+            <div id="game-container">
+                <canvas id="gameCanvas" width="2048" height="2048"></canvas>
+            </div>
+            
+            <!-- 扬声器装饰 -->
+            <div class="speaker-grill"></div>
+        </div>
+        
+        <!-- 控制区域 (1/3) -->
+        <div id="control-section">
+            <!-- 十字键 -->
+            <div class="d-pad-container">
+                <div class="d-pad"></div>
+                <div id="btn-up" class="d-btn">▲</div>
+                <div id="btn-left" class="d-btn">◀</div>
+                <div id="btn-right" class="d-btn">▶</div>
+                <div id="btn-down" class="d-btn">▼</div>
+            </div>
+            
+            <!-- 加速按钮 -->
+            <div class="action-btn-container">
+                <button id="boost-btn">加速</button>
+                <div class="btn-label">Boost</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // 注意：JavaScript代码完全保持不变，仅CSS和HTML结构调整
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const tileCount = 32, res = 2048, size = res / tileCount;
+    
+    let score = 0, dx = 0, dy = -1, isPaused = true;
+    let snake = [], foods = [], obstacles = [], portals = [], skills = [];
+    let timers = { obs: 10, portal: 20 }, state = { shield: false, confusedCD: 0 };
+    let isBoosting = false, lastTime = 0, lastTimestamp = 0;
+    
+    // --- 音频引擎核心修复 ---
+    let audioCtx = null;
+    let nextBeatTime = 0;
+    let isMusicActive = false; // 独立音乐开关
+    const notes = [130.81, 146.83, 164.81, 174.61, 196.00, 174.61, 164.81, 146.83];
+    let noteIndex = 0;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        nextBeatTime = audioCtx.currentTime + 0.1;
+        isMusicActive = true;
+    }
+
+    function musicScheduler() {
+        if (!isMusicActive || !audioCtx) return;
+
+        // 如果游戏暂停，我们依然运行调度器，但跳过节拍播放，或者保持极慢节奏
+        // 关键修复：如果 nextBeatTime 落后太多，立即对齐
+        if (nextBeatTime < audioCtx.currentTime) {
+            nextBeatTime = audioCtx.currentTime + 0.05;
+        }
+
+        while (nextBeatTime < audioCtx.currentTime + 0.1) {
+            if (!isPaused) {
+                playStep(nextBeatTime);
+            }
+            const tempo = (isBoosting ? 0.12 : 0.24) / (1 + score * 0.01);
+            nextBeatTime += tempo;
+        }
+        setTimeout(musicScheduler, 25);
+    }
+
+    function playStep(time) {
+        // Kick
+        const osc1 = audioCtx.createOscillator();
+        const g1 = audioCtx.createGain();
+        osc1.frequency.setValueAtTime(isBoosting ? 80 : 60, time);
+        osc1.frequency.exponentialRampToValueAtTime(0.01, time + 0.1);
+        g1.gain.setValueAtTime(0.4, time);
+        g1.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+        osc1.connect(g1); g1.connect(audioCtx.destination);
+        osc1.start(time); osc1.stop(time + 0.1);
+
+        // Bass/Melody
+        const osc2 = audioCtx.createOscillator();
+        const g2 = audioCtx.createGain();
+        osc2.type = 'sawtooth';
+        osc2.frequency.setValueAtTime(notes[noteIndex % notes.length], time);
+        g2.gain.setValueAtTime(0.04, time);
+        g2.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+        osc2.connect(g2); g2.connect(audioCtx.destination);
+        osc2.start(time); osc2.stop(time + 0.15);
+        noteIndex++;
+    }
+
+    function playSfx(freq, type='sine', dur=0.2) {
+        if(!audioCtx || audioCtx.state === 'suspended') return;
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(); o.stop(audioCtx.currentTime + dur);
+    }
+
+    // --- 游戏核心 ---
+    function gameReset() {
+        score = 0; dx = 0; dy = -1;
+        snake = [{x: 16, y: 16}, {x: 16, y: 17}, {x: 16, y: 18}];
+        foods = []; skills = [];
+        timers = { obs: 10, portal: 20 };
+        state = { shield: false, confusedCD: 0 };
+        document.getElementById('score-board').innerText = "0";
+        obstacles = Array(12).fill(0).map(() => getSafePos());
+        portals = [getSafePos(), getSafePos()]; // 开局即生成
+        spawnItems();
+    }
+
+    function getSafePos() {
+        for(let i=0; i<100; i++) {
+            let p = {x: Math.floor(Math.random()*tileCount), y: Math.floor(Math.random()*tileCount)};
+            if ([...snake, ...obstacles, ...portals, ...skills, ...foods].every(it => it.x !== p.x || it.y !== p.y)) return p;
+        }
+        return {x: -1, y: -1};
+    }
+
+    function spawnItems() {
+        while(foods.length < 4) { 
+            let p = getSafePos(); if(p.x===-1) break;
+            const r = Math.random(); foods.push({...p, n: r>0.8?'🍔':(r>0.5?'🐟':'🍎'), v: r>0.8?5:(r>0.5?3:1)});
+        }
+        while(skills.filter(s => s.type === 'good').length < 4) {
+            let p = getSafePos(); if(p.x!==-1) skills.push({...p, type: 'good'}); else break;
+        }
+        while(skills.filter(s => s.type === 'bad').length < 3) {
+            let p = getSafePos(); if(p.x!==-1) skills.push({...p, type: 'bad'}); else break;
+        }
+    }
+
+    function update() {
+        if (isPaused) return;
+        let nx = (snake[0].x + dx + tileCount) % tileCount;
+        let ny = (snake[0].y + dy + tileCount) % tileCount;
+
+        if (obstacles.some(o => o.x === nx && o.y === ny)) {
+            if(state.shield) { state.shield = false; obstacles = obstacles.filter(o=>o.x!==nx||o.y!==ny); playSfx(400, 'square'); }
+            else return die();
+        }
+        if (snake.some(s => s.x === nx && s.y === ny)) return die();
+
+        for (let p of portals) { if (nx === p.x && ny === p.y) { const othr = portals.find(o => o !== p); if(othr) { nx = othr.x; ny = othr.y; playSfx(880); } break; } }
+
+        const fIdx = foods.findIndex(f => f.x === nx && f.y === ny);
+        if (fIdx !== -1) {
+            score += foods[fIdx].v; document.getElementById('score-board').innerText = score;
+            playSfx(900 + (score*5)); foods.splice(fIdx, 1); snake.unshift({x: nx, y: ny});
+        } else {
+            const sIdx = skills.findIndex(s => s.x === nx && s.y === ny);
+            if(sIdx !== -1) {
+                if(skills[sIdx].type === 'good') { if(Math.random()>0.5) state.shield=true; else obstacles=[]; playSfx(1100); }
+                else { state.confusedCD=5; playSfx(150, 'sawtooth'); }
+                skills.splice(sIdx, 1);
+            }
+            snake.unshift({x: nx, y: ny}); snake.pop();
+        }
+        spawnItems();
+    }
+
+    function die() {
+        isPaused = true;
+        document.getElementById('death-screen').style.display = 'flex';
+        playSfx(80, 'sawtooth', 0.4);
+    }
+
+    function loop(t) {
+        if(!lastTimestamp) lastTimestamp = t;
+        const dt = (t - lastTimestamp) / 1000;
+        lastTimestamp = t;
+        if(!isPaused) {
+            timers.obs -= dt; timers.portal -= dt;
+            state.confusedCD = Math.max(0, state.confusedCD - dt);
+            document.getElementById('t-obs').innerText = Math.max(0, timers.obs).toFixed(1);
+            document.getElementById('t-portal').innerText = Math.max(0, timers.portal).toFixed(1);
+            document.getElementById('tag-shield').style.display = state.shield ? 'block' : 'none';
+            document.getElementById('tag-confused').style.display = state.confusedCD > 0 ? 'block' : 'none';
+            if(timers.obs <= 0) { obstacles = Array(12).fill(0).map(()=>getSafePos()); timers.obs = 10; playSfx(200, 'square'); }
+            if(timers.portal <= 0) { portals = [getSafePos(), getSafePos()]; timers.portal = 20; }
+        }
+        let speed = (isBoosting ? 60 : 150) * Math.pow(0.98, Math.floor(score/10));
+        if(t - lastTime > speed) { update(); lastTime = t; }
+        
+        // 渲染逻辑
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, res, res);
+        obstacles.forEach(o => { ctx.fillStyle = timers.obs < 2.5 ? (Math.sin(t*0.01)>0?'#ff3b30':'#444') : '#444'; ctx.beginPath(); ctx.roundRect(o.x*size+10, o.y*size+10, size-20, size-20, 15); ctx.fill(); });
+        portals.forEach(p => { ctx.strokeStyle = '#007aff'; ctx.lineWidth = 15; ctx.beginPath(); ctx.arc(p.x*size+size/2, p.y*size+size/2, size*0.4, 0, 7); ctx.stroke(); });
+        skills.forEach(s => { ctx.strokeStyle = s.type === 'good' ? '#8e8e93' : '#ff3b30'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(s.x*size+size/2, s.y*size+size/2, size*0.35, 0, 7); ctx.stroke(); });
+        foods.forEach(f => { ctx.font="45px Arial"; ctx.textAlign="center"; ctx.fillText(f.n, f.x*size+size/2, f.y*size+size/2+15); });
+        snake.forEach((s, i) => { ctx.fillStyle = i===0?(state.confusedCD>0?'#ff3b30':'#007aff'):'#000'; ctx.beginPath(); ctx.arc(s.x*size+size/2, s.y*size+size/2, size*0.4, 0, 7); ctx.fill(); });
+        
+        requestAnimationFrame(loop);
+    }
+
+    // --- 按钮逻辑 ---
+    document.getElementById('start-btn').onclick = () => {
+        document.getElementById('start-screen').style.display = 'none';
+        initAudio();
+        gameReset();
+        isPaused = false;
+        musicScheduler();
+    };
+
+    document.getElementById('restart-btn').onclick = () => {
+        document.getElementById('death-screen').style.display = 'none';
+        // 核心：强制重对齐时间轴
+        if (audioCtx) {
+            audioCtx.resume().then(() => {
+                nextBeatTime = audioCtx.currentTime + 0.05;
+                gameReset();
+                isPaused = false;
+            });
+        }
+    };
+
+    const ctrl = (x, y) => { if(!isPaused) { if(state.confusedCD>0){x=-x;y=-y;} if((x&&dx===0)||(y&&dy===0)){dx=x;dy=y;} } };
+    document.getElementById('btn-up').onclick = () => ctrl(0,-1);
+    document.getElementById('btn-down').onclick = () => ctrl(0,1);
+    document.getElementById('btn-left').onclick = () => ctrl(-1,0);
+    document.getElementById('btn-right').onclick = () => ctrl(1,0);
+    const bBtn = document.getElementById('boost-btn');
+    bBtn.ontouchstart = (e) => { e.preventDefault(); isBoosting = true; };
+    bBtn.ontouchend = () => isBoosting = false;
+    bBtn.onmousedown = () => isBoosting = true;
+    bBtn.onmouseup = () => isBoosting = false;
+
+    requestAnimationFrame(loop);
+</script>
+</body>
+</html>
